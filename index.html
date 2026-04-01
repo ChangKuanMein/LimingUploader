@@ -404,11 +404,11 @@ async function uploadFile(file) {
       headers: {
         'X-Password': password,
         'Content-Type': file.type || 'application/octet-stream',
-        'X-File-Meta': JSON.stringify({
+        'X-File-Meta': encodeURIComponent(JSON.stringify({
           fileName: file.name,
           mimeType: file.type || 'application/octet-stream',
           folderId: currentFolderId
-        })
+        }))
       },
       body: file,
     });
