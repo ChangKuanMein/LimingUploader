@@ -5,30 +5,49 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>檔案上傳系統</title>
 <style>
+  /* ========================================
+     基本重置與全域設定
+     ======================================== */
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #f5f5f5; min-height: 100vh; }
   .container { max-width: 720px; margin: 0 auto; padding: 16px; }
 
-  /* 登入畫面 */
-  #login-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
-  .login-card { background: #fff; border-radius: 16px; padding: 40px 32px; width: 100%; max-width: 360px; box-shadow: 0 2px 16px rgba(0,0,0,0.08); }
-  .login-card h1 { font-size: 20px; font-weight: 600; margin-bottom: 6px; }
-  .login-card p { font-size: 14px; color: #666; margin-bottom: 24px; }
-  .login-card input { width: 100%; padding: 10px 14px; border: 1px solid #ddd; border-radius: 10px; font-size: 15px; margin-bottom: 12px; outline: none; }
-  .login-card input:focus { border-color: #378ADD; }
-  .btn-primary { width: 100%; padding: 11px; background: #378ADD; color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 500; cursor: pointer; }
-  .btn-primary:hover { background: #2d72c0; }
-  .error-msg { color: #e24b4a; font-size: 13px; margin-top: 8px; text-align: center; }
-
-  /* 主畫面 */
-  #main-screen { display: none; }
+  /* ========================================
+     頂部導覽列
+     ======================================== */
   .top-bar { background: #fff; border-radius: 12px; padding: 14px 16px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; border: 1px solid #eee; }
   .top-bar h1 { font-size: 16px; font-weight: 600; }
-  .top-bar span { font-size: 12px; color: #888; }
-  .logout-btn { font-size: 12px; color: #888; background: none; border: none; cursor: pointer; }
-  .logout-btn:hover { color: #e24b4a; }
+  .top-bar-right { display: flex; align-items: center; gap: 12px; }
+  .login-status { font-size: 12px; color: #888; }
+  .login-status.logged-in { color: #3B6D11; font-weight: 500; }
 
-  /* 資料夾區 */
+  /* ========================================
+     按鈕樣式
+     ======================================== */
+  .btn-primary { padding: 8px 16px; background: #378ADD; color: #fff; border: none; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; }
+  .btn-primary:hover { background: #2d72c0; }
+  .btn-secondary { padding: 8px 16px; background: #f5f5f5; color: #333; border: 1px solid #ddd; border-radius: 8px; font-size: 13px; cursor: pointer; }
+  .btn-secondary:hover { background: #eee; }
+  .btn-danger { padding: 8px 16px; background: none; color: #e24b4a; border: none; border-radius: 8px; font-size: 13px; cursor: pointer; }
+  .btn-danger:hover { background: #fff0f0; }
+
+  /* ========================================
+     密碼輸入彈窗（新增資料夾或上傳時才出現）
+     ======================================== */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 100; align-items: center; justify-content: center; padding: 16px; }
+  .modal-overlay.show { display: flex; }
+  .modal { background: #fff; border-radius: 16px; padding: 24px; width: 100%; max-width: 340px; }
+  .modal h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+  .modal p { font-size: 13px; color: #888; margin-bottom: 16px; }
+  .modal input { width: 100%; padding: 10px 14px; border: 1px solid #ddd; border-radius: 10px; font-size: 14px; margin-bottom: 10px; outline: none; }
+  .modal input:focus { border-color: #378ADD; }
+  .modal-btns { display: flex; gap: 8px; }
+  .modal-btns button { flex: 1; padding: 10px; border-radius: 10px; font-size: 14px; cursor: pointer; }
+  .error-msg { color: #e24b4a; font-size: 12px; margin-bottom: 10px; min-height: 16px; }
+
+  /* ========================================
+     資料夾區塊
+     ======================================== */
   .section-title { font-size: 13px; color: #888; margin-bottom: 10px; }
   .folder-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; margin-bottom: 16px; }
   @media (max-width: 480px) { .folder-grid { grid-template-columns: repeat(2, 1fr); } }
@@ -43,19 +62,9 @@
   .add-folder-card .plus { font-size: 22px; color: #aaa; }
   .add-folder-card .label { font-size: 13px; color: #888; }
 
-  /* 新增資料夾 modal */
-  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 100; align-items: center; justify-content: center; padding: 16px; }
-  .modal-overlay.show { display: flex; }
-  .modal { background: #fff; border-radius: 16px; padding: 24px; width: 100%; max-width: 340px; }
-  .modal h3 { font-size: 16px; font-weight: 600; margin-bottom: 16px; }
-  .modal input { width: 100%; padding: 10px 14px; border: 1px solid #ddd; border-radius: 10px; font-size: 14px; margin-bottom: 14px; outline: none; }
-  .modal input:focus { border-color: #378ADD; }
-  .modal-btns { display: flex; gap: 8px; }
-  .btn-secondary { flex: 1; padding: 10px; background: #f5f5f5; color: #333; border: none; border-radius: 10px; font-size: 14px; cursor: pointer; }
-  .btn-secondary:hover { background: #eee; }
-  .modal-btns .btn-primary { flex: 1; padding: 10px; font-size: 14px; }
-
-  /* 檔案列表 */
+  /* ========================================
+     檔案列表區塊
+     ======================================== */
   .file-section { background: #fff; border-radius: 12px; border: 1px solid #eee; overflow: hidden; margin-bottom: 16px; }
   .file-section-header { padding: 12px 16px; border-bottom: 1px solid #eee; display: flex; align-items: center; gap: 8px; }
   .file-section-header span { font-size: 13px; color: #888; }
@@ -69,18 +78,20 @@
   .file-date { font-size: 11px; color: #aaa; flex-shrink: 0; }
   .empty-files { padding: 24px; text-align: center; color: #aaa; font-size: 13px; }
 
-  /* 上傳區 */
+  /* ========================================
+     上傳區塊（登入後才顯示）
+     ======================================== */
   .upload-section { background: #fff; border-radius: 12px; border: 1px solid #eee; padding: 20px; }
   .upload-zone { border: 2px dashed #ddd; border-radius: 12px; padding: 28px 20px; text-align: center; cursor: pointer; transition: border-color 0.15s, background 0.15s; }
   .upload-zone:hover, .upload-zone.dragover { border-color: #378ADD; background: #f0f7ff; }
   .upload-zone .upload-icon { font-size: 32px; margin-bottom: 10px; }
   .upload-zone .upload-text { font-size: 14px; color: #444; margin-bottom: 4px; }
   .upload-zone .upload-hint { font-size: 12px; color: #aaa; }
-  .upload-zone .upload-btn-label { display: inline-block; margin-top: 12px; padding: 8px 20px; background: #378ADD; color: #fff; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; }
-  #file-input { display: none; }
-  .no-folder-hint { text-align: center; color: #aaa; font-size: 13px; padding: 16px 0; }
+  .upload-btn-label { display: inline-block; margin-top: 12px; padding: 8px 20px; background: #378ADD; color: #fff; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; }
 
-  /* 進度列表 */
+  /* ========================================
+     上傳進度列表
+     ======================================== */
   .upload-list { margin-top: 14px; display: flex; flex-direction: column; gap: 10px; }
   .upload-item { background: #f9f9f9; border-radius: 10px; padding: 10px 14px; }
   .upload-item-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
@@ -91,153 +102,296 @@
   .progress-bar { height: 4px; background: #e8e8e8; border-radius: 2px; overflow: hidden; }
   .progress-fill { height: 100%; background: #378ADD; border-radius: 2px; transition: width 0.3s; }
   .progress-fill.done { background: #639922; }
+
+  /* ========================================
+     未選資料夾的提示
+     ======================================== */
+  .no-folder-hint { text-align: center; color: #aaa; font-size: 13px; padding: 20px 0; }
+  .login-hint { text-align: center; padding: 16px; background: #fffbe6; border-radius: 10px; border: 1px solid #ffe58f; }
+  .login-hint p { font-size: 13px; color: #876800; margin-bottom: 10px; }
 </style>
 </head>
 <body>
 
-<!-- 登入畫面 -->
-<div id="login-screen">
-  <div class="login-card">
-    <h1>📁 檔案上傳系統</h1>
-    <p>請輸入密碼以繼續</p>
-    <input type="password" id="password-input" placeholder="輸入密碼" />
-    <button class="btn-primary" onclick="login()">登入</button>
-    <div class="error-msg" id="login-error"></div>
+<!-- ========================================
+     密碼驗證彈窗
+     點擊「新增資料夾」或「上傳檔案」時出現
+     ======================================== -->
+<div class="modal-overlay" id="password-modal">
+  <div class="modal">
+    <h3 id="modal-title">請輸入密碼</h3>
+    <p id="modal-desc">輸入密碼後即可執行此操作</p>
+    <input type="password" id="modal-password" placeholder="輸入密碼" />
+    <div class="error-msg" id="modal-error"></div>
+    <div class="modal-btns">
+      <button class="btn-secondary" onclick="closePasswordModal()">取消</button>
+      <button class="btn-primary" onclick="confirmPassword()">確認</button>
+    </div>
   </div>
 </div>
 
-<!-- 新增資料夾 Modal -->
+<!-- ========================================
+     新增資料夾彈窗
+     密碼驗證通過後才出現
+     ======================================== -->
 <div class="modal-overlay" id="folder-modal">
   <div class="modal">
     <h3>新增資料夾</h3>
+    <p>在目前位置建立新資料夾</p>
     <input type="text" id="folder-name-input" placeholder="資料夾名稱" />
     <div class="modal-btns">
-      <button class="btn-secondary" onclick="closeModal()">取消</button>
+      <button class="btn-secondary" onclick="closeFolderModal()">取消</button>
       <button class="btn-primary" onclick="confirmCreateFolder()">建立</button>
     </div>
   </div>
 </div>
 
-<!-- 主畫面 -->
-<div id="main-screen">
-  <div class="container">
-    <div class="top-bar">
-      <div>
-        <h1>檔案上傳系統</h1>
-        <span id="org-label">yourname.org 雲端空間</span>
-      </div>
-      <button class="logout-btn" onclick="logout()">登出</button>
-    </div>
+<!-- ========================================
+     主畫面
+     ======================================== -->
+<div class="container">
 
-    <div class="section-title">選擇上傳目標資料夾</div>
-    <div class="folder-grid" id="folder-grid">
-      <div class="folder-card" style="opacity:0.5;pointer-events:none">
-        <div class="icon">📁</div>
-        <div class="name">載入中...</div>
-      </div>
+  <!-- 頂部導覽列 -->
+  <div class="top-bar">
+    <div>
+      <h1>📁 檔案上傳系統</h1>
     </div>
-
-    <div class="file-section">
-      <div class="file-section-header">
-        <span>已上傳的檔案</span>
-        <span class="badge" id="current-folder-badge">請先選擇資料夾</span>
-      </div>
-      <div id="file-list"><div class="empty-files">請先選擇左側資料夾</div></div>
-    </div>
-
-    <div class="upload-section">
-      <div id="upload-area">
-        <div class="no-folder-hint">請先選擇資料夾，再上傳檔案</div>
-      </div>
-      <div class="upload-list" id="upload-list"></div>
+    <div class="top-bar-right">
+      <!-- 登入狀態顯示 -->
+      <span class="login-status" id="login-status">訪客模式（只能查看）</span>
+      <!-- 已登入時顯示登出按鈕，未登入時顯示登入按鈕 -->
+      <button class="btn-primary" id="auth-btn" onclick="handleAuthBtn()">登入</button>
     </div>
   </div>
+
+  <!-- 資料夾選擇區 -->
+  <div class="section-title">選擇資料夾</div>
+  <div class="folder-grid" id="folder-grid">
+    <div class="folder-card" style="opacity:0.5;pointer-events:none">
+      <div class="icon">📁</div>
+      <div class="name">載入中...</div>
+    </div>
+  </div>
+
+  <!-- 檔案列表區 -->
+  <div class="file-section">
+    <div class="file-section-header">
+      <span>檔案列表</span>
+      <span class="badge" id="current-folder-badge">請先選擇資料夾</span>
+    </div>
+    <div id="file-list">
+      <div class="empty-files">請先選擇左側資料夾</div>
+    </div>
+  </div>
+
+  <!-- 上傳區（登入後才顯示上傳功能） -->
+  <div class="upload-section" id="upload-section">
+    <div id="upload-area">
+      <!-- 未選資料夾時的提示 -->
+      <div class="no-folder-hint">請先選擇資料夾</div>
+    </div>
+    <div class="upload-list" id="upload-list"></div>
+  </div>
+
 </div>
 
 <script>
-  // ★ 修改這裡：填入你的 Cloudflare Worker 網址
+  // ========================================
+  // 設定區：填入你自己的 Worker 網址
+  // ========================================
   const WORKER_URL = 'https://liminguploader.c3012312.workers.dev';
 
-  let password = '';
-  let currentFolderId = null;
-  let currentFolderName = '';
+  // ========================================
+  // 狀態管理
+  // ========================================
+  let password = '';           // 儲存密碼（登入後才有值）
+  let isLoggedIn = false;      // 是否已登入
+  let currentFolderId = null;  // 目前選中的資料夾 ID
+  let currentFolderName = '';  // 目前選中的資料夾名稱
+  let pendingAction = null;    // 等待密碼驗證後要執行的動作
 
-  // 登入
-  async function login() {
-    const input = document.getElementById('password-input').value.trim();
-    if (!input) return;
-    const res = await fetch(`${WORKER_URL}/folders`, {
-      headers: { 'X-Password': input }
-    });
-    if (res.ok) {
-      password = input;
-      document.getElementById('login-screen').style.display = 'none';
-      document.getElementById('main-screen').style.display = 'block';
-      loadFolders();
+  // ========================================
+  // 頁面載入時自動執行
+  // ========================================
+  window.onload = () => {
+    loadFolders(); // 不需要密碼，直接載入資料夾列表
+  };
+
+  // ========================================
+  // 登入 / 登出 按鈕處理
+  // ========================================
+  function handleAuthBtn() {
+    if (isLoggedIn) {
+      logout();
     } else {
-      document.getElementById('login-error').textContent = '密碼錯誤，請再試一次';
+      // 點登入按鈕時，開啟密碼彈窗，驗證後設定登入狀態
+      openPasswordModal('登入', '輸入密碼後可新增資料夾和上傳檔案', () => {
+        setLoggedIn();
+        // 如果已選了資料夾，重新顯示上傳區
+        if (currentFolderId) showUploadZone();
+      });
     }
   }
 
-  document.getElementById('password-input').addEventListener('keydown', e => {
-    if (e.key === 'Enter') login();
-  });
-
-  function logout() {
-    password = '';
-    currentFolderId = null;
-    document.getElementById('main-screen').style.display = 'none';
-    document.getElementById('login-screen').style.display = 'flex';
-    document.getElementById('password-input').value = '';
+  // 設定為已登入狀態
+  function setLoggedIn() {
+    isLoggedIn = true;
+    document.getElementById('login-status').textContent = '已登入 ✓';
+    document.getElementById('login-status').className = 'login-status logged-in';
+    document.getElementById('auth-btn').textContent = '登出';
+    document.getElementById('auth-btn').className = 'btn-danger';
+    loadFolders(); // 重新載入資料夾，顯示新增資料夾按鈕
   }
 
-  // 載入資料夾列表
-  async function loadFolders() {
+  // 登出
+  function logout() {
+    password = '';
+    isLoggedIn = false;
+    document.getElementById('login-status').textContent = '訪客模式（只能查看）';
+    document.getElementById('login-status').className = 'login-status';
+    document.getElementById('auth-btn').textContent = '登入';
+    document.getElementById('auth-btn').className = 'btn-primary';
+    loadFolders(); // 重新載入資料夾，隱藏新增資料夾按鈕
+    // 如果有選資料夾，隱藏上傳區
+    if (currentFolderId) {
+      document.getElementById('upload-area').innerHTML =
+        '<div class="no-folder-hint">登入後才能上傳檔案</div>';
+    }
+  }
+
+  // ========================================
+  // 密碼彈窗控制
+  // title: 彈窗標題
+  // desc: 說明文字
+  // onSuccess: 密碼驗證成功後執行的函式
+  // ========================================
+  function openPasswordModal(title, desc, onSuccess) {
+    document.getElementById('modal-title').textContent = title;
+    document.getElementById('modal-desc').textContent = desc;
+    document.getElementById('modal-password').value = '';
+    document.getElementById('modal-error').textContent = '';
+    document.getElementById('password-modal').classList.add('show');
+    pendingAction = onSuccess; // 記住驗證成功後要做什麼
+    setTimeout(() => document.getElementById('modal-password').focus(), 100);
+  }
+
+  function closePasswordModal() {
+    document.getElementById('password-modal').classList.remove('show');
+    pendingAction = null;
+  }
+
+  // 確認密碼：呼叫 Worker 驗證
+  async function confirmPassword() {
+    const input = document.getElementById('modal-password').value.trim();
+    if (!input) return;
+
+    // 用 GET /folders 來驗證密碼是否正確
     const res = await fetch(`${WORKER_URL}/folders`, {
-      headers: { 'X-Password': password }
+      headers: { 'X-Password': input }
     });
+
+    if (res.ok) {
+      // 密碼正確：儲存密碼、關閉彈窗、執行待辦動作
+      password = input;
+      closePasswordModal();
+      if (pendingAction) pendingAction();
+    } else {
+      // 密碼錯誤：顯示錯誤訊息
+      document.getElementById('modal-error').textContent = '密碼錯誤，請再試一次';
+    }
+  }
+
+  // ========================================
+  // 資料夾操作
+  // ========================================
+
+  // 載入資料夾列表（公開，不需要密碼）
+  async function loadFolders() {
+    const res = await fetch(`${WORKER_URL}/folders`);
     const data = await res.json();
     const grid = document.getElementById('folder-grid');
     grid.innerHTML = '';
 
+    // 顯示每個資料夾卡片
     (data.files || []).forEach(folder => {
       const card = document.createElement('div');
       card.className = 'folder-card' + (folder.id === currentFolderId ? ' active' : '');
       card.innerHTML = `<div class="icon">📁</div><div class="name">${folder.name}</div>`;
-      card.onclick = () => selectFolder(folder.id, folder.name);
+      card.onclick = () => selectFolder(folder.id, folder.name, card);
       grid.appendChild(card);
     });
 
-    const addCard = document.createElement('div');
-    addCard.className = 'add-folder-card';
-    addCard.innerHTML = `<div class="plus">＋</div><div class="label">新增資料夾</div>`;
-    addCard.onclick = openModal;
-    grid.appendChild(addCard);
+    // 已登入才顯示「新增資料夾」按鈕
+    if (isLoggedIn) {
+      const addCard = document.createElement('div');
+      addCard.className = 'add-folder-card';
+      addCard.innerHTML = `<div class="plus">＋</div><div class="label">新增資料夾</div>`;
+      addCard.onclick = openFolderModal;
+      grid.appendChild(addCard);
+    }
   }
 
   // 選擇資料夾
-  async function selectFolder(id, name) {
+  function selectFolder(id, name, cardEl) {
     currentFolderId = id;
     currentFolderName = name;
     document.getElementById('current-folder-badge').textContent = name;
+    // 更新選中狀態
     document.querySelectorAll('.folder-card').forEach(c => c.classList.remove('active'));
-    event.currentTarget.classList.add('active');
+    cardEl.classList.add('active');
     loadFiles(id);
-    showUploadZone();
+    // 已登入才顯示上傳區，未登入顯示提示
+    if (isLoggedIn) {
+      showUploadZone();
+    } else {
+      document.getElementById('upload-area').innerHTML = `
+        <div class="login-hint">
+          <p>登入後才能上傳檔案或新增資料夾</p>
+          <button class="btn-primary" onclick="handleAuthBtn()">立即登入</button>
+        </div>
+      `;
+    }
   }
 
-  // 載入檔案列表
-  async function loadFiles(folderId) {
-    document.getElementById('file-list').innerHTML = '<div class="empty-files">載入中...</div>';
-    const res = await fetch(`${WORKER_URL}/files?folderId=${folderId}`, {
-      headers: { 'X-Password': password }
+  // 新增資料夾彈窗
+  function openFolderModal() {
+    document.getElementById('folder-name-input').value = '';
+    document.getElementById('folder-modal').classList.add('show');
+    setTimeout(() => document.getElementById('folder-name-input').focus(), 100);
+  }
+
+  function closeFolderModal() {
+    document.getElementById('folder-modal').classList.remove('show');
+  }
+
+  // 確認新增資料夾
+  async function confirmCreateFolder() {
+    const name = document.getElementById('folder-name-input').value.trim();
+    if (!name) return;
+    await fetch(`${WORKER_URL}/folders`, {
+      method: 'POST',
+      headers: { 'X-Password': password, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name })
     });
+    closeFolderModal();
+    loadFolders(); // 重新載入資料夾列表
+  }
+
+  // ========================================
+  // 檔案列表（公開，不需要密碼）
+  // ========================================
+  async function loadFiles(folderId) {
+    document.getElementById('file-list').innerHTML =
+      '<div class="empty-files">載入中...</div>';
+    const res = await fetch(`${WORKER_URL}/files?folderId=${folderId}`);
     const data = await res.json();
     const list = document.getElementById('file-list');
+
     if (!data.files || data.files.length === 0) {
       list.innerHTML = '<div class="empty-files">這個資料夾還沒有檔案</div>';
       return;
     }
+
     list.innerHTML = data.files.map(f => `
       <div class="file-row">
         <div class="file-type-icon">${getFileIcon(f.mimeType)}</div>
@@ -250,19 +404,24 @@
     `).join('');
   }
 
-  // 顯示上傳區
+  // ========================================
+  // 上傳功能（需要登入）
+  // ========================================
+
+  // 顯示上傳拖曳區
   function showUploadZone() {
     const area = document.getElementById('upload-area');
     area.innerHTML = `
       <div class="upload-zone" id="upload-zone">
         <div class="upload-icon">⬆️</div>
         <div class="upload-text">拖曳檔案到這裡</div>
-        <div class="upload-hint">支援所有檔案格式，無大小限制</div>
+        <div class="upload-hint">支援所有格式，無大小限制</div>
         <label class="upload-btn-label">選擇檔案
-          <input type="file" id="file-input" multiple onchange="handleFiles(this.files)">
+          <input type="file" style="display:none" multiple onchange="handleFiles(this.files)">
         </label>
       </div>
     `;
+    // 支援拖曳上傳
     const zone = document.getElementById('upload-zone');
     zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
     zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
@@ -273,17 +432,20 @@
     });
   }
 
-  // 處理上傳
+  // 處理選取的檔案（依序上傳）
   async function handleFiles(files) {
     for (const file of files) {
       await uploadFile(file);
     }
-    loadFiles(currentFolderId);
+    loadFiles(currentFolderId); // 上傳完成後重新整理檔案列表
   }
 
+  // 上傳單一檔案
   async function uploadFile(file) {
     const itemId = 'upload-' + Date.now() + Math.random();
     const list = document.getElementById('upload-list');
+
+    // 新增進度條項目
     const item = document.createElement('div');
     item.className = 'upload-item';
     item.id = itemId;
@@ -292,20 +454,26 @@
         <div class="upload-item-name">${file.name}</div>
         <div class="upload-item-status" id="${itemId}-status">準備中...</div>
       </div>
-      <div class="progress-bar"><div class="progress-fill" id="${itemId}-bar" style="width:0%"></div></div>
+      <div class="progress-bar">
+        <div class="progress-fill" id="${itemId}-bar" style="width:0%"></div>
+      </div>
     `;
     list.prepend(item);
 
     try {
-      // 取得 resumable upload URL
+      // 向 Worker 申請上傳網址
       const res = await fetch(`${WORKER_URL}/upload-url`, {
         method: 'POST',
         headers: { 'X-Password': password, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fileName: file.name, mimeType: file.type || 'application/octet-stream', folderId: currentFolderId })
+        body: JSON.stringify({
+          fileName: file.name,
+          mimeType: file.type || 'application/octet-stream',
+          folderId: currentFolderId
+        })
       });
       const { uploadUrl } = await res.json();
 
-      // 上傳到 Google Drive（直接從瀏覽器上傳）
+      // 直接從瀏覽器上傳到 Google Drive（不經過 Worker）
       await uploadWithProgress(file, uploadUrl, itemId);
 
     } catch (err) {
@@ -314,11 +482,14 @@
     }
   }
 
+  // 帶進度條的上傳
   function uploadWithProgress(file, uploadUrl, itemId) {
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       xhr.open('PUT', uploadUrl);
       xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+
+      // 更新進度條
       xhr.upload.onprogress = e => {
         if (e.lengthComputable) {
           const pct = Math.round(e.loaded / e.total * 100);
@@ -326,6 +497,8 @@
           document.getElementById(`${itemId}-status`).textContent = pct + '%';
         }
       };
+
+      // 上傳完成
       xhr.onload = () => {
         if (xhr.status >= 200 && xhr.status < 300) {
           document.getElementById(`${itemId}-bar`).style.width = '100%';
@@ -334,40 +507,31 @@
           document.getElementById(`${itemId}-status`).className = 'upload-item-status done';
           resolve();
         } else {
-          reject(new Error('Upload failed'));
+          reject(new Error('上傳失敗'));
         }
       };
-      xhr.onerror = () => reject(new Error('Network error'));
+      xhr.onerror = () => reject(new Error('網路錯誤'));
       xhr.send(file);
     });
   }
 
-  // 新增資料夾
-  function openModal() {
-    document.getElementById('folder-modal').classList.add('show');
-    setTimeout(() => document.getElementById('folder-name-input').focus(), 100);
-  }
-  function closeModal() {
-    document.getElementById('folder-modal').classList.remove('show');
-    document.getElementById('folder-name-input').value = '';
-  }
-  async function confirmCreateFolder() {
-    const name = document.getElementById('folder-name-input').value.trim();
-    if (!name) return;
-    await fetch(`${WORKER_URL}/folders`, {
-      method: 'POST',
-      headers: { 'X-Password': password, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name })
-    });
-    closeModal();
-    loadFolders();
-  }
+  // ========================================
+  // 鍵盤快捷鍵
+  // ========================================
+  document.getElementById('modal-password').addEventListener('keydown', e => {
+    if (e.key === 'Enter') confirmPassword();
+    if (e.key === 'Escape') closePasswordModal();
+  });
   document.getElementById('folder-name-input').addEventListener('keydown', e => {
     if (e.key === 'Enter') confirmCreateFolder();
-    if (e.key === 'Escape') closeModal();
+    if (e.key === 'Escape') closeFolderModal();
   });
 
+  // ========================================
   // 工具函式
+  // ========================================
+
+  // 根據 MIME type 回傳對應的 emoji 圖示
   function getFileIcon(mime) {
     if (!mime) return '📄';
     if (mime.startsWith('image/')) return '🖼️';
@@ -380,13 +544,17 @@
     if (mime.includes('document') || mime.includes('word')) return '📝';
     return '📄';
   }
+
+  // 格式化檔案大小
   function formatSize(bytes) {
     if (!bytes) return '—';
     if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1048576) return (bytes/1024).toFixed(1) + ' KB';
-    if (bytes < 1073741824) return (bytes/1048576).toFixed(1) + ' MB';
-    return (bytes/1073741824).toFixed(2) + ' GB';
+    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+    if (bytes < 1073741824) return (bytes / 1048576).toFixed(1) + ' MB';
+    return (bytes / 1073741824).toFixed(2) + ' GB';
   }
+
+  // 格式化日期
   function formatDate(iso) {
     if (!iso) return '';
     const d = new Date(iso);
