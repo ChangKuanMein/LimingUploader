@@ -88,6 +88,12 @@
   .progress-bar { height: 4px; background: #e8e8e8; border-radius: 2px; overflow: hidden; }
   .progress-fill { height: 100%; background: #378ADD; border-radius: 2px; transition: width 0.3s; }
   .progress-fill.done { background: #639922; }
+
+  /* 下載樣式 */
+  .file-actions { display: flex; gap: 6px; flex-shrink: 0; }
+  .btn-action { font-size: 11px; padding: 4px 10px; border-radius: 6px; border: 1px solid #ddd; color: #378ADD; text-decoration: none; white-space: nowrap; }
+  .btn-action:hover { background: #f0f7ff; border-color: #378ADD; }
+  @media (max-width: 480px) { .file-date { display: none; } } 
 </style>
 </head>
 <body>
@@ -348,6 +354,10 @@
           <div class="file-meta">${formatSize(f.size)}</div>
         </div>
         <div class="file-date">${formatDate(f.createdTime)}</div>
+        <div class="file-actions">
+          <a href="https://drive.google.com/file/d/${f.id}/view" target="_blank" class="btn-action">預覽</a>
+          <a href="https://drive.google.com/uc?export=download&id=${f.id}" class="btn-action">下載</a>
+        </div>
       </div>
     `).join('');
   }
