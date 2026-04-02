@@ -91,9 +91,15 @@
 
   /* 下載樣式 */
   .file-actions { display: flex; gap: 6px; flex-shrink: 0; }
-  .btn-action { font-size: 11px; padding: 4px 10px; border-radius: 6px; border: 1px solid #ddd; color: #378ADD; text-decoration: none; white-space: nowrap; }
+  .btn-action { font-size: 11px; padding: 4px 10px; border-radius: 6px; border: 1px solid #ddd; color: #378ADD; text-decoration: none; white-space: nowrap; background: none; cursor: pointer; }
   .btn-action:hover { background: #f0f7ff; border-color: #378ADD; }
-  @media (max-width: 480px) { .file-date { display: none; } } 
+  @media (max-width: 480px) { .file-date { display: none; } }
+
+  /* 資料夾改名按鈕 */
+  .folder-card { position: relative; }
+  .folder-rename-btn { position: absolute; top: 6px; right: 6px; font-size: 11px; padding: 2px 7px; border-radius: 6px; background: rgba(255,255,255,0.95); border: 1px solid #ddd; color: #888; cursor: pointer; opacity: 0; transition: opacity 0.15s; line-height: 1.6; }
+  .folder-card:hover .folder-rename-btn { opacity: 1; }
+  .folder-rename-btn:hover { color: #378ADD; border-color: #378ADD; }
 </style>
 </head>
 <body>
@@ -122,6 +128,20 @@
     <div class="modal-btns">
       <button class="btn-secondary" onclick="closeFolderModal()">取消</button>
       <button class="btn-primary" onclick="confirmCreateFolder()">建立</button>
+    </div>
+  </div>
+</div>
+
+<!-- 重新命名彈窗 -->
+<div class="modal-overlay" id="rename-modal">
+  <div class="modal">
+    <h3>✏️ 重新命名</h3>
+    <p id="rename-modal-desc">輸入新名稱</p>
+    <input type="text" id="rename-name-input" placeholder="新名稱" />
+    <div class="error-msg" id="rename-error"></div>
+    <div class="modal-btns">
+      <button class="btn-secondary" onclick="closeRenameModal()">取消</button>
+      <button class="btn-primary" id="rename-confirm-btn" onclick="confirmRename()">確認</button>
     </div>
   </div>
 </div>
@@ -169,6 +189,9 @@
   let isLoggedIn = false;
   let currentFolderId = null;
   let currentFolderName = '';
+  let _renameType = '';
+  let _renameId = '';
+  let _renameTargets = {};
 
   // 頁面載入：直接顯示資料夾，不需要密碼
   window.onload = () => loadFolders();
@@ -276,6 +299,17 @@
       card.className = 'folder-card' + (folder.id === currentFolderId ? ' active' : '');
       card.innerHTML = `<div class="icon">📁</div><div class="name">${folder.name}</div>`;
       card.onclick = () => selectFolder(folder.id, folder.name, card);
+      if (isLoggedIn) {
+        const renameBtn = document.createElement('button');
+        renameBtn.className = 'folder-rename-btn';
+        renameBtn.textContent = '✏️';
+        renameBtn.title = '重新命名';
+        renameBtn.onclick = (e) => {
+          e.stopPropagation();
+          openRenameModal('folder', folder.id, folder.name);
+        };
+        card.appendChild(renameBtn);
+      }
       grid.appendChild(card);
     });
 
@@ -346,20 +380,28 @@
       list.innerHTML = '<div class="empty-files">這個資料夾還沒有檔案</div>';
       return;
     }
-    list.innerHTML = data.files.map(f => `
-      <div class="file-row">
-        <div class="file-type-icon">${getFileIcon(f.mimeType)}</div>
-        <div class="file-info">
-          <div class="file-name">${f.name}</div>
-          <div class="file-meta">${formatSize(f.size)}</div>
+    _renameTargets = {};
+    list.innerHTML = data.files.map(f => {
+      _renameTargets[f.id] = f.name;
+      const renameBtn = isLoggedIn
+        ? `<button class="btn-action" onclick="openRenameModal('file', '${f.id}')">改名</button>`
+        : '';
+      return `
+        <div class="file-row">
+          <div class="file-type-icon">${getFileIcon(f.mimeType)}</div>
+          <div class="file-info">
+            <div class="file-name">${f.name}</div>
+            <div class="file-meta">${formatSize(f.size)}</div>
+          </div>
+          <div class="file-date">${formatDate(f.createdTime)}</div>
+          <div class="file-actions">
+            <a href="https://drive.google.com/file/d/${f.id}/view" target="_blank" class="btn-action">預覽</a>
+            <a href="https://drive.google.com/uc?export=download&id=${f.id}" class="btn-action">下載</a>
+            ${renameBtn}
+          </div>
         </div>
-        <div class="file-date">${formatDate(f.createdTime)}</div>
-        <div class="file-actions">
-          <a href="https://drive.google.com/file/d/${f.id}/view" target="_blank" class="btn-action">預覽</a>
-          <a href="https://drive.google.com/uc?export=download&id=${f.id}" class="btn-action">下載</a>
-        </div>
-      </div>
-    `).join('');
+      `;
+    }).join('');
   }
 
   // ── 上傳功能（需要登入）─────────────────
@@ -473,6 +515,67 @@ async function uploadFile(file) {
     if (e.key === 'Enter') confirmCreateFolder();
     if (e.key === 'Escape') closeFolderModal();
   });
+  document.getElementById('rename-name-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') confirmRename();
+    if (e.key === 'Escape') closeRenameModal();
+  });
+
+  // ── 重新命名 ──────────────────────────────
+
+  function openRenameModal(type, id, name) {
+    _renameType = type;
+    _renameId = id;
+    const currentName = name !== undefined ? name : (_renameTargets[id] || '');
+    document.getElementById('rename-modal-desc').textContent =
+      type === 'folder' ? '輸入資料夾新名稱' : '輸入檔案新名稱';
+    document.getElementById('rename-name-input').value = currentName;
+    document.getElementById('rename-error').textContent = '';
+    document.getElementById('rename-confirm-btn').disabled = false;
+    document.getElementById('rename-confirm-btn').textContent = '確認';
+    document.getElementById('rename-modal').classList.add('show');
+    setTimeout(() => {
+      const input = document.getElementById('rename-name-input');
+      input.focus();
+      input.select();
+    }, 100);
+  }
+
+  function closeRenameModal() {
+    document.getElementById('rename-modal').classList.remove('show');
+  }
+
+  async function confirmRename() {
+    const newName = document.getElementById('rename-name-input').value.trim();
+    if (!newName) return;
+    const btn = document.getElementById('rename-confirm-btn');
+    btn.disabled = true;
+    btn.textContent = '處理中...';
+    document.getElementById('rename-error').textContent = '';
+    try {
+      const res = await fetch(`${WORKER_URL}/rename`, {
+        method: 'PATCH',
+        headers: { 'X-Password': password, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: _renameId, newName })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        closeRenameModal();
+        if (_renameType === 'folder') {
+          loadFolders();
+        } else {
+          loadFiles(currentFolderId);
+        }
+      } else {
+        document.getElementById('rename-error').textContent = data.error || '重新命名失敗';
+        btn.disabled = false;
+        btn.textContent = '確認';
+      }
+    } catch (err) {
+      document.getElementById('rename-error').textContent = '網路錯誤，請稍後再試';
+      btn.disabled = false;
+      btn.textContent = '確認';
+    }
+  }
 
   // ── 工具函式 ─────────────────────────────
 
