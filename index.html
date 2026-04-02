@@ -102,6 +102,10 @@
   .breadcrumb-sep { color: #bbb; }
   .breadcrumb-current { color: #333; font-weight: 500; }
 
+  /* 排序按鈕 */
+  .sort-btn { margin-left: auto; font-size: 11px; padding: 3px 10px; border-radius: 6px; border: 1px solid #ddd; background: #f5f5f5; color: #555; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+  .sort-btn:hover { border-color: #378ADD; color: #378ADD; background: #f0f7ff; }
+
   /* 資料夾改名按鈕 */
   .folder-card { position: relative; }
   .folder-rename-btn { position: absolute; top: 6px; right: 6px; font-size: 11px; padding: 2px 7px; border-radius: 6px; background: rgba(255,255,255,0.95); border: 1px solid #ddd; color: #888; cursor: pointer; opacity: 0; transition: opacity 0.15s; line-height: 1.6; }
@@ -183,6 +187,7 @@
       <div class="file-section-header">
         <span>檔案列表</span>
         <span class="badge" id="current-folder-badge">請先選擇資料夾</span>
+        <button class="sort-btn" id="sort-btn" onclick="toggleSort()" style="display:none">名稱 ↑</button>
       </div>
       <div id="file-list">
         <div class="empty-files">請先選擇資料夾</div>
@@ -219,6 +224,8 @@
   let _renameType = '';
   let _renameId = '';
   let _renameTargets = {};
+  let sortAsc = true;
+  let currentFiles = [];
 
   // 頁面載入：顯示類別選擇畫面
   window.onload = () => loadCategories();
@@ -335,6 +342,8 @@
     currentCategoryName = name;
     currentFolderId = null;
     currentFolderName = '';
+    // 活動照片預設反排序，其餘正排序
+    sortAsc = (id !== '12xTW7EdkKu4mPQead-0C7NTJT54gzZD3');
     document.getElementById('breadcrumb-cat').textContent = name;
     document.getElementById('category-view').style.display = 'none';
     document.getElementById('folder-view').style.display = 'block';
@@ -441,15 +450,26 @@
   async function loadFiles(folderId) {
     document.getElementById('file-list').innerHTML =
       '<div class="empty-files">載入中...</div>';
+    document.getElementById('sort-btn').style.display = 'none';
     const res = await fetch(`${WORKER_URL}/files?folderId=${folderId}`);
     const data = await res.json();
-    const list = document.getElementById('file-list');
     if (!data.files || data.files.length === 0) {
-      list.innerHTML = '<div class="empty-files">這個資料夾還沒有檔案</div>';
+      document.getElementById('file-list').innerHTML =
+        '<div class="empty-files">這個資料夾還沒有檔案</div>';
       return;
     }
+    currentFiles = data.files;
+    renderFiles();
+  }
+
+  function renderFiles() {
+    const sorted = [...currentFiles].sort((a, b) =>
+      sortAsc
+        ? a.name.localeCompare(b.name, 'zh-TW', { sensitivity: 'base' })
+        : b.name.localeCompare(a.name, 'zh-TW', { sensitivity: 'base' })
+    );
     _renameTargets = {};
-    list.innerHTML = data.files.map(f => {
+    document.getElementById('file-list').innerHTML = sorted.map(f => {
       _renameTargets[f.id] = f.name;
       const renameBtn = isLoggedIn
         ? `<button class="btn-action" onclick="openRenameModal('file', '${f.id}')">改名</button>`
@@ -470,6 +490,14 @@
         </div>
       `;
     }).join('');
+    const btn = document.getElementById('sort-btn');
+    btn.style.display = '';
+    btn.textContent = `名稱 ${sortAsc ? '↑' : '↓'}`;
+  }
+
+  function toggleSort() {
+    sortAsc = !sortAsc;
+    renderFiles();
   }
 
   // ── 上傳功能（需要登入）─────────────────
