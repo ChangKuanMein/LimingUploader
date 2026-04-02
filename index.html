@@ -95,6 +95,13 @@
   .btn-action:hover { background: #f0f7ff; border-color: #378ADD; }
   @media (max-width: 480px) { .file-date { display: none; } }
 
+  /* 麵包屑導覽 */
+  .breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 13px; margin-bottom: 12px; }
+  .breadcrumb-home { color: #378ADD; cursor: pointer; }
+  .breadcrumb-home:hover { text-decoration: underline; }
+  .breadcrumb-sep { color: #bbb; }
+  .breadcrumb-current { color: #333; font-weight: 500; }
+
   /* 資料夾改名按鈕 */
   .folder-card { position: relative; }
   .folder-rename-btn { position: absolute; top: 6px; right: 6px; font-size: 11px; padding: 2px 7px; border-radius: 6px; background: rgba(255,255,255,0.95); border: 1px solid #ddd; color: #888; cursor: pointer; opacity: 0; transition: opacity 0.15s; line-height: 1.6; }
@@ -156,45 +163,65 @@
     </div>
   </div>
 
-  <div class="section-title">選擇資料夾</div>
-  <div class="folder-grid" id="folder-grid">
-    <div class="folder-card" style="opacity:0.5;pointer-events:none">
-      <div class="icon">📁</div>
-      <div class="name">載入中...</div>
-    </div>
+  <!-- 類別選擇畫面 -->
+  <div id="category-view">
+    <div class="section-title">選擇類別</div>
+    <div class="folder-grid" id="category-grid"></div>
   </div>
 
-  <div class="file-section">
-    <div class="file-section-header">
-      <span>檔案列表</span>
-      <span class="badge" id="current-folder-badge">請先選擇資料夾</span>
+  <!-- 子資料夾 + 檔案畫面 -->
+  <div id="folder-view" style="display:none">
+    <div class="breadcrumb">
+      <span class="breadcrumb-home" onclick="goHome()">全部</span>
+      <span class="breadcrumb-sep">›</span>
+      <span class="breadcrumb-current" id="breadcrumb-cat"></span>
     </div>
-    <div id="file-list">
-      <div class="empty-files">請先選擇資料夾</div>
-    </div>
-  </div>
+    <div class="section-title">選擇資料夾</div>
+    <div class="folder-grid" id="folder-grid"></div>
 
-  <div class="upload-section">
-    <div id="upload-area">
-      <div class="empty-files">請先選擇資料夾</div>
+    <div class="file-section">
+      <div class="file-section-header">
+        <span>檔案列表</span>
+        <span class="badge" id="current-folder-badge">請先選擇資料夾</span>
+      </div>
+      <div id="file-list">
+        <div class="empty-files">請先選擇資料夾</div>
+      </div>
     </div>
-    <div class="upload-list" id="upload-list"></div>
+
+    <div class="upload-section">
+      <div id="upload-area">
+        <div class="empty-files">請先選擇資料夾</div>
+      </div>
+      <div class="upload-list" id="upload-list"></div>
+    </div>
   </div>
 </div>
 
 <script>
   const WORKER_URL = 'https://liminguploader.c3012312.workers.dev';
 
+  const CATEGORIES = [
+    { name: '活動照片', id: '12xTW7EdkKu4mPQead-0C7NTJT54gzZD3', icon: '📸' },
+    { name: '查經聚會', id: '1Zwx2lO4j_kTmZtbQYs7mhMMbVmpWyIk4', icon: '📖' },
+    { name: '信仰精進班', id: '1IDzp-x6Vmyi5XgPaA_db9vBc8nYFsKEG', icon: '✝️' },
+    { name: '福音組',   id: '1cuTONhr9O9Y4KN-FZUy53oQupwkO0t7y', icon: '🕊️' },
+    { name: '宗教教育', id: '1uczT0j1R-MExPaWl9iRFcqgS9_8HNtPU', icon: '🎓' },
+    { name: '其他',     id: '1Y0wHh1jI0cKmiFpoVdzctVxgZa8f2H30', icon: '📂' },
+  ];
+
   let password = '';
   let isLoggedIn = false;
+  let currentCategoryId = null;
+  let currentCategoryName = '';
   let currentFolderId = null;
   let currentFolderName = '';
   let _renameType = '';
   let _renameId = '';
   let _renameTargets = {};
 
-  // 頁面載入：直接顯示資料夾，不需要密碼
-  window.onload = () => loadFolders();
+  // 頁面載入：顯示類別選擇畫面
+  window.onload = () => loadCategories();
 
   // ── 登入 / 登出 ──────────────────────────
 
@@ -251,8 +278,10 @@
         // 短暫顯示成功訊息後關閉
         setTimeout(() => {
           closeLoginModal();
-          loadFolders(); // 重新載入，顯示新增資料夾按鈕
-          if (currentFolderId) showUploadZone();
+          if (currentCategoryId) {
+            loadFolders();
+            if (currentFolderId) showUploadZone();
+          }
         }, 800);
       } else {
         // 登入失敗
@@ -276,20 +305,59 @@
     document.getElementById('status-badge').className = 'status-badge';
     document.getElementById('auth-btn').textContent = '登入';
     document.getElementById('auth-btn').className = 'btn-primary';
-    loadFolders();
-    // 隱藏上傳區
-    if (currentFolderId) {
-      showLoginHint();
-    } else {
-      document.getElementById('upload-area').innerHTML =
-        '<div class="empty-files">請先選擇資料夾</div>';
+    if (currentCategoryId) {
+      loadFolders();
+      if (currentFolderId) {
+        showLoginHint();
+      } else {
+        document.getElementById('upload-area').innerHTML =
+          '<div class="empty-files">請先選擇資料夾</div>';
+      }
     }
+  }
+
+  // ── 類別 ──────────────────────────────────
+
+  function loadCategories() {
+    const grid = document.getElementById('category-grid');
+    grid.innerHTML = '';
+    CATEGORIES.forEach(cat => {
+      const card = document.createElement('div');
+      card.className = 'folder-card';
+      card.innerHTML = `<div class="icon">${cat.icon}</div><div class="name">${cat.name}</div>`;
+      card.onclick = () => selectCategory(cat.id, cat.name);
+      grid.appendChild(card);
+    });
+  }
+
+  function selectCategory(id, name) {
+    currentCategoryId = id;
+    currentCategoryName = name;
+    currentFolderId = null;
+    currentFolderName = '';
+    document.getElementById('breadcrumb-cat').textContent = name;
+    document.getElementById('category-view').style.display = 'none';
+    document.getElementById('folder-view').style.display = 'block';
+    document.getElementById('current-folder-badge').textContent = '請先選擇資料夾';
+    document.getElementById('file-list').innerHTML = '<div class="empty-files">請先選擇資料夾</div>';
+    document.getElementById('upload-area').innerHTML = '<div class="empty-files">請先選擇資料夾</div>';
+    document.getElementById('upload-list').innerHTML = '';
+    loadFolders();
+  }
+
+  function goHome() {
+    currentCategoryId = null;
+    currentCategoryName = '';
+    currentFolderId = null;
+    currentFolderName = '';
+    document.getElementById('folder-view').style.display = 'none';
+    document.getElementById('category-view').style.display = 'block';
   }
 
   // ── 資料夾 ────────────────────────────────
 
   async function loadFolders() {
-    const res = await fetch(`${WORKER_URL}/folders`);
+    const res = await fetch(`${WORKER_URL}/folders?folderId=${currentCategoryId}`);
     const data = await res.json();
     const grid = document.getElementById('folder-grid');
     grid.innerHTML = '';
@@ -362,7 +430,7 @@
     await fetch(`${WORKER_URL}/folders`, {
       method: 'POST',
       headers: { 'X-Password': password, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name })
+      body: JSON.stringify({ name, parentId: currentCategoryId })
     });
     closeFolderModal();
     loadFolders();
