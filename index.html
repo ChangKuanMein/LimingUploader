@@ -102,6 +102,16 @@
   .breadcrumb-sep { color: #bbb; }
   .breadcrumb-current { color: #333; font-weight: 500; }
 
+  /* 圖片縮圖格 */
+  .img-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; padding: 12px 16px; }
+  @media (max-width: 480px) { .img-grid { grid-template-columns: repeat(3, 1fr); } }
+  .img-card { border-radius: 8px; overflow: hidden; border: 1px solid #eee; transition: box-shadow 0.15s; text-decoration: none; display: block; }
+  .img-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.12); border-color: #bbb; }
+  .img-thumb { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; background: #f0f0f0; }
+  .img-name { font-size: 11px; color: #555; padding: 4px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .img-section-label { font-size: 12px; color: #aaa; padding: 10px 16px 2px; }
+  .img-section-divider { border: none; border-top: 1px solid #f0f0f0; margin: 4px 0; }
+
   /* 刪除按鈕 */
   .btn-danger { padding: 10px; border-radius: 10px; font-size: 14px; cursor: pointer; background: #e24b4a; color: #fff; border: none; flex: 1; }
   .btn-danger:hover { background: #c43a39; }
@@ -496,8 +506,27 @@
     const sortedFiles = (data.files || []).sort((a, b) =>
       sortAsc ? a.name.localeCompare(b.name, 'zh-TW') : b.name.localeCompare(a.name, 'zh-TW')
     );
-    list.innerHTML = sortedFiles.map(f => {
-      _renameTargets[f.id] = f.name;
+    sortedFiles.forEach(f => { _renameTargets[f.id] = f.name; });
+
+    const images = sortedFiles.filter(f => f.mimeType && f.mimeType.startsWith('image/'));
+    const others = sortedFiles.filter(f => !f.mimeType || !f.mimeType.startsWith('image/'));
+
+    let html = '';
+
+    if (images.length > 0) {
+      html += `<div class="img-section-label">圖片（${images.length}）</div>`;
+      html += `<div class="img-grid">`;
+      html += images.map(f => `
+        <a href="https://drive.google.com/file/d/${f.id}/view" target="_blank" class="img-card">
+          <img class="img-thumb" src="https://drive.google.com/thumbnail?id=${f.id}&sz=w300" alt="${f.name}" loading="lazy">
+          <div class="img-name">${f.name}</div>
+        </a>
+      `).join('');
+      html += `</div>`;
+      if (others.length > 0) html += `<hr class="img-section-divider">`;
+    }
+
+    html += others.map(f => {
       const renameBtn = isLoggedIn
         ? `<button class="btn-action" onclick="openRenameModal('file', '${f.id}')">改名</button>`
         : '';
@@ -521,6 +550,8 @@
         </div>
       `;
     }).join('');
+
+    list.innerHTML = html || '<div class="empty-files">這個資料夾還沒有檔案</div>';
   }
 
   // ── 上傳功能（需要登入）─────────────────
