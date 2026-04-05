@@ -102,6 +102,25 @@
   .breadcrumb-sep { color: #bbb; }
   .breadcrumb-current { color: #333; font-weight: 500; }
 
+  /* 圖片縮圖格 */
+  .img-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; padding: 12px 16px; }
+  @media (max-width: 480px) { .img-grid { grid-template-columns: repeat(3, 1fr); } }
+  .img-card { border-radius: 8px; overflow: hidden; border: 1px solid #eee; transition: box-shadow 0.15s; text-decoration: none; display: block; }
+  .img-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.12); border-color: #bbb; }
+  .img-thumb { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; background: #f0f0f0; }
+  .img-name { font-size: 11px; color: #555; padding: 4px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .img-section-label { font-size: 12px; color: #aaa; padding: 10px 16px 2px; }
+  .img-section-divider { border: none; border-top: 1px solid #f0f0f0; margin: 4px 0; }
+
+  /* 刪除按鈕 */
+  .btn-danger { padding: 10px; border-radius: 10px; font-size: 14px; cursor: pointer; background: #e24b4a; color: #fff; border: none; flex: 1; }
+  .btn-danger:hover { background: #c43a39; }
+  .btn-action-delete { color: #e24b4a !important; }
+  .btn-action-delete:hover { background: #fff0f0 !important; border-color: #e24b4a !important; }
+  .folder-delete-btn { position: absolute; top: 6px; left: 6px; font-size: 11px; padding: 2px 7px; border-radius: 6px; background: rgba(255,255,255,0.95); border: 1px solid #ddd; color: #e24b4a; cursor: pointer; opacity: 0; transition: opacity 0.15s; line-height: 1.6; }
+  .folder-card:hover .folder-delete-btn { opacity: 1; }
+  .folder-delete-btn:hover { border-color: #e24b4a; background: #fff0f0; }
+
   /* 排序按鈕 */
   .sort-btn { font-size: 12px; padding: 3px 10px; border-radius: 6px; border: 1px solid #ddd; background: #fff; color: #555; cursor: pointer; margin-left: auto; flex-shrink: 0; }
   .sort-btn:hover { border-color: #378ADD; color: #378ADD; }
@@ -140,6 +159,19 @@
     <div class="modal-btns">
       <button class="btn-secondary" onclick="closeFolderModal()">取消</button>
       <button class="btn-primary" onclick="confirmCreateFolder()">建立</button>
+    </div>
+  </div>
+</div>
+
+<!-- 刪除確認彈窗 -->
+<div class="modal-overlay" id="delete-modal">
+  <div class="modal">
+    <h3>🗑️ 移至刪除區</h3>
+    <p id="delete-modal-desc">確定要移除此項目嗎？</p>
+    <div class="error-msg" id="delete-error"></div>
+    <div class="modal-btns">
+      <button class="btn-secondary" onclick="closeDeleteModal()">取消</button>
+      <button class="btn-danger" id="delete-confirm-btn" onclick="confirmDeleteItem()">確認移除</button>
     </div>
   </div>
 </div>
@@ -225,6 +257,8 @@
   let _renameType = '';
   let _renameId = '';
   let _renameTargets = {};
+  let _deleteType = '';
+  let _deleteId = '';
 
   // 頁面載入：顯示類別選擇畫面
   window.onload = () => loadCategories();
@@ -387,6 +421,16 @@
           openRenameModal('folder', folder.id, folder.name);
         };
         card.appendChild(renameBtn);
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'folder-delete-btn';
+        deleteBtn.textContent = '🗑️';
+        deleteBtn.title = '移至刪除區';
+        deleteBtn.onclick = (e) => {
+          e.stopPropagation();
+          openDeleteModal('folder', folder.id, folder.name);
+        };
+        card.appendChild(deleteBtn);
       }
       grid.appendChild(card);
     });
@@ -462,10 +506,32 @@
     const sortedFiles = (data.files || []).sort((a, b) =>
       sortAsc ? a.name.localeCompare(b.name, 'zh-TW') : b.name.localeCompare(a.name, 'zh-TW')
     );
-    list.innerHTML = sortedFiles.map(f => {
-      _renameTargets[f.id] = f.name;
+    sortedFiles.forEach(f => { _renameTargets[f.id] = f.name; });
+
+    const images = sortedFiles.filter(f => f.mimeType && f.mimeType.startsWith('image/'));
+    const others = sortedFiles.filter(f => !f.mimeType || !f.mimeType.startsWith('image/'));
+
+    let html = '';
+
+    if (images.length > 0) {
+      html += `<div class="img-section-label">圖片（${images.length}）</div>`;
+      html += `<div class="img-grid">`;
+      html += images.map(f => `
+        <a href="https://drive.google.com/file/d/${f.id}/view" target="_blank" class="img-card">
+          <img class="img-thumb" src="https://drive.google.com/thumbnail?id=${f.id}&sz=w300" alt="${f.name}" loading="lazy">
+          <div class="img-name">${f.name}</div>
+        </a>
+      `).join('');
+      html += `</div>`;
+      if (others.length > 0) html += `<hr class="img-section-divider">`;
+    }
+
+    html += others.map(f => {
       const renameBtn = isLoggedIn
         ? `<button class="btn-action" onclick="openRenameModal('file', '${f.id}')">改名</button>`
+        : '';
+      const deleteBtn = isLoggedIn
+        ? `<button class="btn-action btn-action-delete" onclick="openDeleteModal('file', '${f.id}')">刪除</button>`
         : '';
       return `
         <div class="file-row">
@@ -479,10 +545,13 @@
             <a href="https://drive.google.com/file/d/${f.id}/view" target="_blank" class="btn-action">預覽</a>
             <a href="https://drive.google.com/uc?export=download&id=${f.id}" class="btn-action">下載</a>
             ${renameBtn}
+            ${deleteBtn}
           </div>
         </div>
       `;
     }).join('');
+
+    list.innerHTML = html || '<div class="empty-files">這個資料夾還沒有檔案</div>';
   }
 
   // ── 上傳功能（需要登入）─────────────────
@@ -611,6 +680,9 @@ async function uploadFile(file) {
     if (e.key === 'Enter') confirmRename();
     if (e.key === 'Escape') closeRenameModal();
   });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && document.getElementById('delete-modal').classList.contains('show')) closeDeleteModal();
+  });
 
   // ── 重新命名 ──────────────────────────────
 
@@ -666,6 +738,57 @@ async function uploadFile(file) {
       document.getElementById('rename-error').textContent = '網路錯誤，請稍後再試';
       btn.disabled = false;
       btn.textContent = '確認';
+    }
+  }
+
+  // ── 刪除（移至刪除區）────────────────────
+
+  function openDeleteModal(type, id, name) {
+    _deleteType = type;
+    _deleteId = id;
+    name = name || _renameTargets[id] || id;
+    const typeLabel = type === 'folder' ? '資料夾' : '檔案';
+    document.getElementById('delete-modal-desc').textContent =
+      `確定要將${typeLabel}「${name}」移至刪除區嗎？`;
+    document.getElementById('delete-error').textContent = '';
+    document.getElementById('delete-confirm-btn').disabled = false;
+    document.getElementById('delete-confirm-btn').textContent = '確認移除';
+    document.getElementById('delete-modal').classList.add('show');
+  }
+
+  function closeDeleteModal() {
+    document.getElementById('delete-modal').classList.remove('show');
+  }
+
+  async function confirmDeleteItem() {
+    const btn = document.getElementById('delete-confirm-btn');
+    btn.disabled = true;
+    btn.textContent = '處理中...';
+    document.getElementById('delete-error').textContent = '';
+    const fromParentId = _deleteType === 'folder' ? currentCategoryId : currentFolderId;
+    try {
+      const res = await fetch(`${WORKER_URL}/move`, {
+        method: 'PATCH',
+        headers: { 'X-Password': password, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: _deleteId, fromParentId })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        closeDeleteModal();
+        if (_deleteType === 'folder') {
+          loadFolders();
+        } else {
+          loadFiles(currentFolderId);
+        }
+      } else {
+        document.getElementById('delete-error').textContent = data.error || '移動失敗';
+        btn.disabled = false;
+        btn.textContent = '確認移除';
+      }
+    } catch (err) {
+      document.getElementById('delete-error').textContent = '網路錯誤，請稍後再試';
+      btn.disabled = false;
+      btn.textContent = '確認移除';
     }
   }
 
