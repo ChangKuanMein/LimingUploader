@@ -145,7 +145,7 @@
   <div class="modal">
     <h3>🔐 登入</h3>
     <p>輸入密碼後可上傳檔案及新增資料夾</p>
-    <input type="password" id="login-password" placeholder="輸入密碼" />
+    <input type="password" id="login-password" placeholder="密碼提示：523..." />
     <div class="error-msg" id="login-error"></div>
     <div class="success-msg" id="login-success"></div>
     <div class="modal-btns">
@@ -327,7 +327,7 @@
         }, 800);
       } else {
         // 登入失敗
-        document.getElementById('login-error').textContent = '✗ 密碼錯誤，請再試一次';
+        document.getElementById('login-error').textContent = '✗ 密碼錯誤，請再試一次（提示：523...）';
         document.getElementById('status-badge').textContent = '密碼錯誤';
         document.getElementById('status-badge').className = 'status-badge error';
         btn.disabled = false;
