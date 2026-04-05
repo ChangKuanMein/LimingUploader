@@ -249,6 +249,7 @@
     { name: '信仰精進班', id: '1IDzp-x6Vmyi5XgPaA_db9vBc8nYFsKEG', icon: '✝️' },
     { name: '福音組',   id: '1cuTONhr9O9Y4KN-FZUy53oQupwkO0t7y', icon: '🕊️' },
     { name: '宗教教育', id: '1uczT0j1R-MExPaWl9iRFcqgS9_8HNtPU', icon: '🎓' },
+    { name: '感動文字紀錄', url: 'https://docs.google.com/forms/d/e/1FAIpQLSefHtRz-OdeewdtKzQ1_I8UPKAqdrEyTNuC0zo1WTQdwv98fA/viewform?usp=dialog', icon: '📝' },
     { name: '其他',     id: '1Y0wHh1jI0cKmiFpoVdzctVxgZa8f2H30', icon: '📂' },
   ];
 
@@ -373,7 +374,11 @@
       const card = document.createElement('div');
       card.className = 'folder-card';
       card.innerHTML = `<div class="icon">${cat.icon}</div><div class="name">${cat.name}</div>`;
-      card.onclick = () => selectCategory(cat.id, cat.name);
+      if (cat.url) {
+        card.onclick = () => openExternal(cat.url);
+      } else {
+        card.onclick = () => selectCategory(cat.id, cat.name);
+      }
       grid.appendChild(card);
     });
   }
