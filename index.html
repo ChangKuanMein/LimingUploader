@@ -126,6 +126,10 @@
   .folder-card:hover .folder-delete-btn { opacity: 1; }
   .folder-delete-btn:hover { border-color: #e24b4a; background: #fff0f0; }
 
+  /* 開啟雲端硬碟按鈕 */
+  .btn-drive { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; padding: 10px; background: #fff; border: 1px solid #ddd; border-radius: 10px; font-size: 13px; color: #555; cursor: pointer; margin-bottom: 16px; transition: border-color 0.15s, color 0.15s; }
+  .btn-drive:hover { border-color: #378ADD; color: #378ADD; }
+
   /* 排序按鈕 */
   .sort-btn { font-size: 12px; padding: 3px 10px; border-radius: 6px; border: 1px solid #ddd; background: #fff; color: #555; cursor: pointer; margin-left: auto; flex-shrink: 0; }
   .sort-btn:hover { border-color: #378ADD; color: #378ADD; }
@@ -209,11 +213,13 @@
   <div id="category-view">
     <div class="section-title">選擇類別</div>
     <div class="folder-grid" id="category-grid"></div>
+    <div id="category-drive-btn"></div>
   </div>
 
   <!-- 子資料夾 + 檔案畫面 -->
   <div id="folder-view" style="display:none">
     <div class="breadcrumb" id="breadcrumb"></div>
+    <div id="folder-drive-btn"></div>
     <div class="section-title">選擇資料夾<button class="sort-btn" id="sort-btn" onclick="toggleSort()">A→Z ▲</button></div>
     <div class="folder-grid" id="folder-grid"></div>
 
@@ -320,6 +326,7 @@
         // 短暫顯示成功訊息後關閉
         setTimeout(() => {
           closeLoginModal();
+          updateDriveBtn();
           if (currentCategoryId) {
             loadFolders();
             if (currentFolderId) showUploadZone();
@@ -347,6 +354,7 @@
     document.getElementById('status-badge').className = 'status-badge';
     document.getElementById('auth-btn').textContent = '登入';
     document.getElementById('auth-btn').className = 'btn-primary';
+    updateDriveBtn();
     if (currentCategoryId) {
       loadFolders();
       if (currentFolderId) {
@@ -387,6 +395,7 @@
     document.getElementById('upload-area').innerHTML = '<div class="empty-files">請先選擇資料夾</div>';
     document.getElementById('upload-list').innerHTML = '';
     renderBreadcrumb();
+    updateDriveBtn();
     loadFolders();
   }
 
@@ -572,7 +581,7 @@
         const playOverlay = isVideo ? `<div class="img-play-overlay"></div>` : '';
         return `
           <div class="img-card">
-            <a href="https://drive.google.com/file/d/${f.id}/view" target="_blank">
+            <a href="https://drive.google.com/file/d/${f.id}/view" onclick="openExternal(this.href);return false;">
               ${thumb}${playOverlay}
             </a>
             <div class="img-name">${f.name}</div>
@@ -608,7 +617,7 @@
           </div>
           <div class="file-date">${formatDate(f.createdTime)}</div>
           <div class="file-actions">
-            <a href="https://drive.google.com/file/d/${f.id}/view" target="_blank" class="btn-action">預覽</a>
+            <a href="https://drive.google.com/file/d/${f.id}/view" onclick="openExternal(this.href);return false;" class="btn-action">預覽</a>
             <a href="https://drive.google.com/uc?export=download&id=${f.id}" class="btn-action">下載</a>
             ${renameBtn}
             ${deleteBtn}
@@ -858,6 +867,29 @@ async function uploadFile(file) {
       btn.disabled = false;
       btn.textContent = '確認移除';
     }
+  }
+
+  // ── 外部瀏覽器 ───────────────────────────
+
+  function openExternal(url) {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
+
+  function updateDriveBtn() {
+    const catBtn = document.getElementById('category-drive-btn');
+    const folderBtn = document.getElementById('folder-drive-btn');
+    if (!isLoggedIn) {
+      if (catBtn) catBtn.innerHTML = '';
+      if (folderBtn) folderBtn.innerHTML = '';
+      return;
+    }
+    const catUrl = currentCategoryId
+      ? `https://drive.google.com/drive/folders/${currentCategoryId}`
+      : 'https://drive.google.com';
+    const btnHtml = (url) =>
+      `<button class="btn-drive" onclick="openExternal('${url}')">☁️ 在 Google Drive 中開啟</button>`;
+    if (catBtn) catBtn.innerHTML = btnHtml(catUrl);
+    if (folderBtn) folderBtn.innerHTML = btnHtml(catUrl);
   }
 
   // ── 排序 ─────────────────────────────────
