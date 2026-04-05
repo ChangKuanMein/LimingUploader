@@ -111,6 +111,8 @@
   .img-delete-btn { position: absolute; top: 5px; right: 5px; width: 24px; height: 24px; border-radius: 50%; background: rgba(0,0,0,0.5); border: none; color: #fff; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.15s; }
   .img-card:hover .img-delete-btn { opacity: 1; }
   .img-delete-btn:hover { background: #e24b4a; }
+  .img-play-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+  .img-play-overlay::after { content: '▶'; font-size: 28px; color: rgba(255,255,255,0.9); text-shadow: 0 1px 6px rgba(0,0,0,0.5); }
   .img-name { font-size: 11px; color: #555; padding: 4px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .img-section-label { font-size: 12px; color: #aaa; padding: 10px 16px 2px; }
   .img-section-divider { border: none; border-top: 1px solid #f0f0f0; margin: 4px 0; }
@@ -211,11 +213,7 @@
 
   <!-- 子資料夾 + 檔案畫面 -->
   <div id="folder-view" style="display:none">
-    <div class="breadcrumb">
-      <span class="breadcrumb-home" onclick="goHome()">全部</span>
-      <span class="breadcrumb-sep">›</span>
-      <span class="breadcrumb-current" id="breadcrumb-cat"></span>
-    </div>
+    <div class="breadcrumb" id="breadcrumb"></div>
     <div class="section-title">選擇資料夾<button class="sort-btn" id="sort-btn" onclick="toggleSort()">A→Z ▲</button></div>
     <div class="folder-grid" id="folder-grid"></div>
 
@@ -256,6 +254,7 @@
   let currentCategoryName = '';
   let currentFolderId = null;
   let currentFolderName = '';
+  let folderStack = []; // [{id, name}, ...]，從類別往下的資料夾路徑
   let sortAsc = true;
   let _renameType = '';
   let _renameId = '';
@@ -378,15 +377,16 @@
     currentCategoryName = name;
     currentFolderId = null;
     currentFolderName = '';
+    folderStack = [];
     sortAsc = (name !== '活動照片');
     updateSortBtn();
-    document.getElementById('breadcrumb-cat').textContent = name;
     document.getElementById('category-view').style.display = 'none';
     document.getElementById('folder-view').style.display = 'block';
     document.getElementById('current-folder-badge').textContent = '請先選擇資料夾';
     document.getElementById('file-list').innerHTML = '<div class="empty-files">請先選擇資料夾</div>';
     document.getElementById('upload-area').innerHTML = '<div class="empty-files">請先選擇資料夾</div>';
     document.getElementById('upload-list').innerHTML = '';
+    renderBreadcrumb();
     loadFolders();
   }
 
@@ -395,14 +395,57 @@
     currentCategoryName = '';
     currentFolderId = null;
     currentFolderName = '';
+    folderStack = [];
     document.getElementById('folder-view').style.display = 'none';
     document.getElementById('category-view').style.display = 'block';
+  }
+
+  function goToStackLevel(index) {
+    // index = -1 表示回到類別層（只顯示資料夾，不選中任何子資料夾）
+    // index = 0..n 表示回到 folderStack[index] 那層
+    if (index < 0) {
+      currentFolderId = null;
+      currentFolderName = '';
+      folderStack = [];
+    } else {
+      folderStack = folderStack.slice(0, index + 1);
+      currentFolderId = folderStack[index].id;
+      currentFolderName = folderStack[index].name;
+    }
+    renderBreadcrumb();
+    loadFolders();
+    if (currentFolderId) {
+      loadFiles(currentFolderId);
+      document.getElementById('current-folder-badge').textContent = currentFolderName;
+      if (isLoggedIn) showUploadZone(); else showLoginHint();
+    } else {
+      document.getElementById('current-folder-badge').textContent = '請先選擇資料夾';
+      document.getElementById('file-list').innerHTML = '<div class="empty-files">請先選擇資料夾</div>';
+      document.getElementById('upload-area').innerHTML = '<div class="empty-files">請先選擇資料夾</div>';
+    }
+  }
+
+  function renderBreadcrumb() {
+    const bc = document.getElementById('breadcrumb');
+    let html = `<span class="breadcrumb-home" onclick="goHome()">全部</span>`;
+    html += `<span class="breadcrumb-sep">›</span>`;
+    html += `<span class="breadcrumb-home" onclick="goToStackLevel(-1)">${currentCategoryName}</span>`;
+    folderStack.forEach((f, i) => {
+      html += `<span class="breadcrumb-sep">›</span>`;
+      if (i < folderStack.length - 1) {
+        html += `<span class="breadcrumb-home" onclick="goToStackLevel(${i})">${f.name}</span>`;
+      } else {
+        html += `<span class="breadcrumb-current">${f.name}</span>`;
+      }
+    });
+    bc.innerHTML = html;
   }
 
   // ── 資料夾 ────────────────────────────────
 
   async function loadFolders() {
-    const res = await fetch(`${WORKER_URL}/folders?folderId=${currentCategoryId}`);
+    const browseFolderId = folderStack.length > 0 ? folderStack[folderStack.length - 1].id : currentCategoryId;
+    const res = await fetch(`${WORKER_URL}/folders?folderId=${browseFolderId}`);
     const data = await res.json();
     const grid = document.getElementById('folder-grid');
     grid.innerHTML = '';
@@ -449,11 +492,12 @@
   }
 
   function selectFolder(id, name, cardEl) {
+    folderStack.push({ id, name });
     currentFolderId = id;
     currentFolderName = name;
     document.getElementById('current-folder-badge').textContent = name;
-    document.querySelectorAll('.folder-card').forEach(c => c.classList.remove('active'));
-    cardEl.classList.add('active');
+    renderBreadcrumb();
+    loadFolders();
     loadFiles(id);
     if (isLoggedIn) {
       showUploadZone();
@@ -512,28 +556,39 @@
     sortedFiles.forEach(f => { _renameTargets[f.id] = f.name; });
 
     const images = sortedFiles.filter(f => f.mimeType && f.mimeType.startsWith('image/'));
-    const others = sortedFiles.filter(f => !f.mimeType || !f.mimeType.startsWith('image/'));
+    const videos = sortedFiles.filter(f => f.mimeType && f.mimeType.startsWith('video/'));
+    const others = sortedFiles.filter(f => !f.mimeType || (!f.mimeType.startsWith('image/') && !f.mimeType.startsWith('video/')));
 
     let html = '';
 
-    if (images.length > 0) {
-      html += `<div class="img-section-label">圖片（${images.length}）</div>`;
-      html += `<div class="img-grid">`;
-      html += images.map(f => {
-        const imgDeleteBtn = isLoggedIn
-          ? `<button class="img-delete-btn" onclick="event.preventDefault();openDeleteModal('file','${f.id}','${f.name.replace(/'/g,"\\'")}')">🗑</button>`
+    function renderMediaGrid(items, label, isVideo) {
+      let g = `<div class="img-section-label">${label}（${items.length}）</div><div class="img-grid">`;
+      g += items.map(f => {
+        const safeName = f.name.replace(/'/g, "\\'");
+        const deleteBtn = isLoggedIn
+          ? `<button class="img-delete-btn" onclick="event.preventDefault();openDeleteModal('file','${f.id}','${safeName}')">🗑</button>`
           : '';
+        const thumb = `<img class="img-thumb" src="https://drive.google.com/thumbnail?id=${f.id}&sz=w300" alt="${f.name}" loading="lazy">`;
+        const playOverlay = isVideo ? `<div class="img-play-overlay"></div>` : '';
         return `
           <div class="img-card">
             <a href="https://drive.google.com/file/d/${f.id}/view" target="_blank">
-              <img class="img-thumb" src="https://drive.google.com/thumbnail?id=${f.id}&sz=w300" alt="${f.name}" loading="lazy">
+              ${thumb}${playOverlay}
             </a>
             <div class="img-name">${f.name}</div>
-            ${imgDeleteBtn}
-          </div>
-        `;
+            ${deleteBtn}
+          </div>`;
       }).join('');
-      html += `</div>`;
+      g += `</div>`;
+      return g;
+    }
+
+    if (images.length > 0) {
+      html += renderMediaGrid(images, '圖片', false);
+      if (videos.length > 0 || others.length > 0) html += `<hr class="img-section-divider">`;
+    }
+    if (videos.length > 0) {
+      html += renderMediaGrid(videos, '影片', true);
       if (others.length > 0) html += `<hr class="img-section-divider">`;
     }
 
@@ -776,7 +831,9 @@ async function uploadFile(file) {
     btn.disabled = true;
     btn.textContent = '處理中...';
     document.getElementById('delete-error').textContent = '';
-    const fromParentId = _deleteType === 'folder' ? currentCategoryId : currentFolderId;
+    const fromParentId = _deleteType === 'folder'
+      ? (folderStack.length > 0 ? folderStack[folderStack.length - 1].id : currentCategoryId)
+      : currentFolderId;
     try {
       const res = await fetch(`${WORKER_URL}/move`, {
         method: 'PATCH',
