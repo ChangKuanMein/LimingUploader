@@ -246,6 +246,7 @@
   const CATEGORIES = [
     { name: '活動照片', id: '12xTW7EdkKu4mPQead-0C7NTJT54gzZD3', icon: '📸' },
     { name: '查經聚會', id: '1Zwx2lO4j_kTmZtbQYs7mhMMbVmpWyIk4', icon: '📖' },
+    { name: '聚會錄音', id: '1VYFvVje7hfRguvu374KV90L9e-R3xbvU', icon: '🎙️', noUpload: true },
     { name: '信仰精進班', id: '1IDzp-x6Vmyi5XgPaA_db9vBc8nYFsKEG', icon: '✝️' },
     { name: '福音組',   id: '1cuTONhr9O9Y4KN-FZUy53oQupwkO0t7y', icon: '🕊️' },
     { name: '宗教教育', id: '1uczT0j1R-MExPaWl9iRFcqgS9_8HNtPU', icon: '🎓' },
@@ -328,7 +329,8 @@
           updateDriveBtn();
           if (currentCategoryId) {
             loadFolders();
-            if (currentFolderId) showUploadZone();
+            const noUpload = CATEGORIES.find(c => c.id === currentCategoryId)?.noUpload;
+            if (currentFolderId && !noUpload) showUploadZone();
           }
         }, 800);
       } else {
@@ -389,7 +391,7 @@
     currentFolderId = null;
     currentFolderName = '';
     folderStack = [];
-    sortAsc = (name !== '活動照片');
+    sortAsc = (name !== '活動照片' && name !== '聚會錄音');
     updateSortBtn();
     document.getElementById('category-view').style.display = 'none';
     document.getElementById('folder-view').style.display = 'block';
@@ -511,7 +513,10 @@
     renderBreadcrumb();
     loadFolders();
     loadFiles(id);
-    if (isLoggedIn) {
+    const noUpload = CATEGORIES.find(c => c.id === currentCategoryId)?.noUpload;
+    if (noUpload) {
+      document.getElementById('upload-area').innerHTML = '';
+    } else if (isLoggedIn) {
       showUploadZone();
     } else {
       showLoginHint();
