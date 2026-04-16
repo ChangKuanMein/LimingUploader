@@ -243,16 +243,7 @@
 <script>
   const WORKER_URL = 'https://liminguploader.c3012312.workers.dev';
 
-  const CATEGORIES = [
-    { name: '活動照片', id: '12xTW7EdkKu4mPQead-0C7NTJT54gzZD3', icon: '📸' },
-    { name: '查經聚會', id: '1Zwx2lO4j_kTmZtbQYs7mhMMbVmpWyIk4', icon: '📖' },
-    { name: '聚會錄音', id: '1VYFvVje7hfRguvu374KV90L9e-R3xbvU', icon: '🎙️', noUpload: true },
-    { name: '信仰精進班', id: '1IDzp-x6Vmyi5XgPaA_db9vBc8nYFsKEG', icon: '✝️' },
-    { name: '福音組',   id: '1cuTONhr9O9Y4KN-FZUy53oQupwkO0t7y', icon: '🕊️' },
-    { name: '宗教教育', id: '1uczT0j1R-MExPaWl9iRFcqgS9_8HNtPU', icon: '🎓' },
-    { name: '感動文字紀錄', url: 'https://docs.google.com/forms/d/e/1FAIpQLSefHtRz-OdeewdtKzQ1_I8UPKAqdrEyTNuC0zo1WTQdwv98fA/viewform?usp=dialog', icon: '📝' },
-    { name: '其他',     id: '1Y0wHh1jI0cKmiFpoVdzctVxgZa8f2H30', icon: '📂' },
-  ];
+  let CATEGORIES = []; // 從 Google Sheet 動態載入
 
   let password = '';
   let isLoggedIn = false;
@@ -369,14 +360,23 @@
 
   // ── 類別 ──────────────────────────────────
 
-  function loadCategories() {
+  async function loadCategories() {
     const grid = document.getElementById('category-grid');
+    grid.innerHTML = '<div class="empty-files">載入中...</div>';
+    try {
+      const res = await fetch(`${WORKER_URL}/categories`);
+      const data = await res.json();
+      CATEGORIES = data.categories || [];
+    } catch (e) {
+      grid.innerHTML = '<div class="empty-files">無法載入類別，請稍後再試</div>';
+      return;
+    }
     grid.innerHTML = '';
     CATEGORIES.forEach(cat => {
       const card = document.createElement('div');
       card.className = 'folder-card';
       card.innerHTML = `<div class="icon">${cat.icon}</div><div class="name">${cat.name}</div>`;
-      if (cat.url) {
+      if (cat.type === 'link' && cat.url) {
         card.onclick = () => openExternal(cat.url);
       } else {
         card.onclick = () => selectCategory(cat.id, cat.name);
@@ -391,7 +391,8 @@
     currentFolderId = null;
     currentFolderName = '';
     folderStack = [];
-    sortAsc = (name !== '活動照片' && name !== '聚會錄音');
+    const cat = CATEGORIES.find(c => c.id === id);
+    sortAsc = (cat?.sort !== 'desc');
     updateSortBtn();
     document.getElementById('category-view').style.display = 'none';
     document.getElementById('folder-view').style.display = 'block';
