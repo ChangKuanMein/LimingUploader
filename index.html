@@ -434,9 +434,10 @@
       document.getElementById('current-folder-badge').textContent = currentFolderName;
       if (isLoggedIn) showUploadZone(); else showLoginHint();
     } else {
-      document.getElementById('current-folder-badge').textContent = '請先選擇資料夾';
-      document.getElementById('file-list').innerHTML = '<div class="empty-files">請先選擇資料夾</div>';
-      document.getElementById('upload-area').innerHTML = '<div class="empty-files">請先選擇資料夾</div>';
+      // 回到類別根目錄，同樣載入該層檔案
+      document.getElementById('current-folder-badge').textContent = currentCategoryName;
+      document.getElementById('upload-area').innerHTML = '<div class="empty-files">請先選擇資料夾後再上傳</div>';
+      loadFiles(currentCategoryId);
     }
   }
 
