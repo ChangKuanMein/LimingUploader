@@ -396,13 +396,13 @@
     updateSortBtn();
     document.getElementById('category-view').style.display = 'none';
     document.getElementById('folder-view').style.display = 'block';
-    document.getElementById('current-folder-badge').textContent = '請先選擇資料夾';
-    document.getElementById('file-list').innerHTML = '<div class="empty-files">請先選擇資料夾</div>';
-    document.getElementById('upload-area').innerHTML = '<div class="empty-files">請先選擇資料夾</div>';
+    document.getElementById('current-folder-badge').textContent = name;
+    document.getElementById('upload-area').innerHTML = '<div class="empty-files">請先選擇資料夾後再上傳</div>';
     document.getElementById('upload-list').innerHTML = '';
     renderBreadcrumb();
     updateDriveBtn();
     loadFolders();
+    loadFiles(id);
   }
 
   function goHome() {
